@@ -1,0 +1,134 @@
+<!-- Version 2.0: Transitioned to 2.0 versioning, restarted version history for a clean slate. -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JFK Files Viewer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script>
+        // Function to update the iframe's src, document title, and fetch insights
+        function showPDF(url, releaseYear) {
+            // Update the iframe and document title
+            document.getElementById("pdfViewer").src = url;
+            document.getElementById("documentTitle").innerText = "Document: {{ file_name }}";
+            document.getElementById("releaseInfo").innerText = "(" + releaseYear + " Release)";
+            document.getElementById("releaseInfo").className = "release-info";
+
+            // Show a loading message while fetching insights
+            const insightsBox = document.getElementById("insightsBox");
+            insightsBox.innerHTML = "<p>Loading insights...</p>";
+
+            // Fetch insights for the selected PDF
+            fetch("/get_insights?pdf_url=" + encodeURIComponent(url))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Network response was not ok: " + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        insightsBox.innerHTML = `<p>Error: ${data.error}</p>`;
+                    } else if (Object.keys(data).length === 0) {
+                        insightsBox.innerHTML = "<p>No insights available.</p>";
+                    } else {
+                        let insightsHTML = "<h3>Document Insights</h3>";
+                        for (const [key, value] of Object.entries(data)) {
+                            insightsHTML += `<p><strong>${key}:</strong></p><ul>`;
+                            for (const item of value) {
+                                insightsHTML += `<li>${item}</li>`;
+                            }
+                            insightsHTML += `</ul>`;
+                        }
+                        insightsBox.innerHTML = insightsHTML;
+                    }
+                })
+                .catch(error => {
+                    insightsBox.innerHTML = `<p>Error fetching insights: ${error.message}</p>`;
+                });
+        }
+    </script>
+</head>
+<body>
+    <h1>JFK Files Viewer v{{ app_version }}</h1>
+    <form method="POST">
+        <label>Enter File Name (e.g., 104-10337-10014):</label><br>
+        <input type="text" name="file_name" required><br>
+        <input type="submit" value="View File">
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if pdf_urls %}
+        <h2 id="documentTitle">Document: {{ file_name }}</h2>
+        {% if pdf_urls|length > 1 %}
+            <!-- Container for hyperlinks and insights box -->
+            <div class="content-container">
+                <div class="links-section">
+                    <p>Please select a release to view:</p>
+                    {% if pdf_urls %}
+                        <ul>
+                            {% for release_year, url in pdf_urls %}
+                                <li><a onclick="showPDF('{{ url }}', '{{ release_year }}')">{{ release_year }} Release</a></li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No releases found for this file.</p>
+                    {% endif %}
+                </div>
+                <!-- Insights display area -->
+                <div id="insightsBox" class="insights-box">
+                    <p>Please select a release to view insights.</p>
+                </div>
+            </div>
+            <!-- Release info and iframe -->
+            <div id="releaseInfo" class="{% if pdf_urls|length > 1 %}release-info multiple-releases{% else %}release-info{% endif %}">
+                {% if pdf_urls|length == 1 %}
+                    ({{ selected_release_year }} Release)
+                {% elif pdf_urls|length > 1 %}
+                    (Multiple Releases Found)
+                {% endif %}
+            </div>
+            <iframe id="pdfViewer" src="" title="JFK File"></iframe>
+        {% else %}
+            <!-- Container for iframe and insights box -->
+            <div class="content-container">
+                <div class="single-file-section">
+                    <!-- Release info and iframe -->
+                    <div id="releaseInfo" class="{% if pdf_urls|length > 1 %}release-info multiple-releases{% else %}release-info{% endif %}">
+                        {% if pdf_urls|length == 1 %}
+                            ({{ selected_release_year }} Release)
+                        {% elif pdf_urls|length > 1 %}
+                            (Multiple Releases Found)
+                        {% endif %}
+                    </div>
+                    <iframe id="pdfViewer" src="{{ selected_pdf_url }}" title="JFK File"></iframe>
+                </div>
+                <!-- Insights display area -->
+                <div id="insightsBox" class="insights-box">
+                    {% if insights %}
+                        {% if insights.error %}
+                            <p>Error: {{ insights.error }}</p>
+                        {% elif insights|length == 0 %}
+                            <p>No insights available.</p>
+                        {% else %}
+                            <h3>Document Insights</h3>
+                            {% for key, value in insights.items() %}
+                                <p><strong>{{ key }}:</strong></p>
+                                <ul>
+                                    {% for item in value %}
+                                        <li>{{ item }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endfor %}
+                        {% endif %}
+                    {% else %}
+                        <p>No insights available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+</body>
+</html>

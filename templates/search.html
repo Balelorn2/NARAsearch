@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JFK Files Viewer - Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>JFK Files Viewer - Search</h1>
+        <nav>
+            <a href="/">Back to Viewer</a>
+        </nav>
+        <form method="POST" action="/search">
+            <label for="query">Search JFK Files (Metadata):</label>
+            <input type="text" id="query" name="query" value="{{ query }}" placeholder="Enter keywords (e.g., Oswald, CIA)">
+            <button type="submit">Search</button>
+        </form>
+
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+
+        {% if results %}
+            <h2>Search Results for "{{ query }}"</h2>
+            <ul class="results">
+                {% for result in results %}
+                    <li>
+                        {% if result.pdf_url %}
+                            <a href="/?file_name={{ result.file_name[:-4] }}">{{ result.file_name }}</a>
+                            (Release Year: {{ result.release_year }})
+                        {% else %}
+                            <a href="{{ result.catalog_url }}" target="_blank">NAID: {{ result.naid }}</a>
+                            (Release Year: {{ result.release_year }})
+                        {% endif %}
+                        <p>{{ result.snippet }}</p>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% elif query %}
+            <p>No results found for "{{ query }}".</p>
+        {% endif %}
+    </div>
+    <footer>
+        <p>JFK Files Viewer v{{ app_version }} | Powered by xAI</p>
+    </footer>
+</body>
+</html>
